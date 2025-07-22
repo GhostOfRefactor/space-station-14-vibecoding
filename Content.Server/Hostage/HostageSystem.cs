@@ -7,6 +7,7 @@ using Content.Shared.Chat;
 using Content.Shared.Interaction;
 using Robust.Shared.Player;
 using Robust.Shared.Serialization;
+using System.Numerics;
 
 namespace Content.Server.Hostage;
 
@@ -52,7 +53,7 @@ public sealed class HostageSystem : EntitySystem
 
     private void OnDoAfter(HostageDoAfterEvent ev)
     {
-        if (ev.Cancelled || ev.Target == null || ev.User == null || ev.Used == null)
+        if (ev.Cancelled || ev.Target == null || ev.Used == null)
             return;
 
         if (!TryComp<ThreatWeaponComponent>(ev.Used.Value, out var threat))
@@ -65,7 +66,7 @@ public sealed class HostageSystem : EntitySystem
         hostage.MaxDistance = threat.IsGun ? 1.5f : 0.5f;
         Dirty(ev.Target.Value, hostage);
 
-        _popup.PopupClient(Loc.GetString("hostage-threat", ("name", EntityManager.GetComponent<MetaDataComponent>(ev.User).EntityName)), ev.Target.Value, Filter.Entities(ev.Target.Value), PopupType.LargeCaution);
+        _popup.PopupEntity(Loc.GetString("hostage-threat", ("name", EntityManager.GetComponent<MetaDataComponent>(ev.User).EntityName)), ev.Target.Value, Filter.Entities(ev.Target.Value), true, PopupType.LargeCaution);
     }
 
     public override void Update(float frameTime)
@@ -82,7 +83,8 @@ public sealed class HostageSystem : EntitySystem
                 continue;
             }
 
-            var dist = _transform.GetMapCoordinates(uid).Position.Distance(_transform.GetMapCoordinates(hostage.Threatener).Position);
+            var dist = Vector2.Distance(_transform.GetMapCoordinates(uid).Position,
+                _transform.GetMapCoordinates(hostage.Threatener).Position);
             if (dist > hostage.MaxDistance && hostage.IsHardThreatEnabled && TryComp(hostage.Threatener, out HardThreatComponent? hard))
             {
                 if (TryComp<DamageableComponent>(uid, out var damage))
