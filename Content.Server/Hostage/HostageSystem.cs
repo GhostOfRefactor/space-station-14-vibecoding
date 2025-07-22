@@ -2,9 +2,11 @@ using Content.Shared.DoAfter;
 using Content.Shared.Hostage;
 using Content.Shared.CombatMode;
 using Content.Shared.Popups;
-using Content.Shared.Damage.Components;
+using Content.Shared.Damage;
 using Content.Shared.Chat;
+using Content.Shared.Interaction;
 using Robust.Shared.Player;
+using Robust.Shared.Serialization;
 
 namespace Content.Server.Hostage;
 
@@ -29,7 +31,7 @@ public sealed class HostageSystem : EntitySystem
         if (args.Handled || args.Target == null || !args.CanReach)
             return;
 
-        if (_combat.InCombatMode(args.User))
+        if (_combat.IsInCombatMode(args.User))
             return;
 
         if (!comp.CanThreaten)
@@ -58,17 +60,18 @@ public sealed class HostageSystem : EntitySystem
 
         var hostage = EnsureComp<HostageComponent>(ev.Target.Value);
         hostage.IsHostage = true;
-        hostage.Threatener = ev.User.Value;
+        hostage.Threatener = ev.User;
         hostage.IsGun = threat.IsGun;
         hostage.MaxDistance = threat.IsGun ? 1.5f : 0.5f;
         Dirty(ev.Target.Value, hostage);
 
-        _popup.PopupClient(Loc.GetString("hostage-threat", ("name", EntityManager.GetComponent<MetaDataComponent>(ev.User.Value).EntityName)), ev.Target.Value, Filter.Entities(ev.Target.Value), PopupType.LargeCaution);
+        _popup.PopupClient(Loc.GetString("hostage-threat", ("name", EntityManager.GetComponent<MetaDataComponent>(ev.User).EntityName)), ev.Target.Value, Filter.Entities(ev.Target.Value), PopupType.LargeCaution);
     }
 
     public override void Update(float frameTime)
     {
-        foreach (var (uid, hostage) in EntityQuery<HostageComponent>())
+        var query = EntityQueryEnumerator<HostageComponent>();
+        while (query.MoveNext(out var uid, out var hostage))
         {
             if (!hostage.IsHostage || hostage.Threatener == EntityUid.Invalid)
                 continue;
